@@ -17,8 +17,6 @@ Removed sections:
 -->
 
 <div align="center">
-
-  <img src="assets/logo.png" alt="logo" width="200" height="auto" />
   <h1>SmartDumbDoorbell</h1>
   
   <p>
@@ -81,7 +79,15 @@ Removed sections:
 <!--<div align="center"> 
   <img src="https://placehold.co/600x400?text=Your+Screenshot+here" alt="screenshot" />
 </div>--!>
-
+<p>
+During our renovation, the doorbell no longer worked, but there was no electricity nearby to place a video doorbell. We didn't trust no-name battery-powered doorbells and had terrible experiences with barely functional commercial point-to-point doorbells. I decided to make my own, cheap dumb doorbell with my existing Home Assistant and ESPHome infrastructure, with the option of putting in a Reolink camera in the future.
+  </p>
+<p>
+This project uses the same mounting holes and general shape of the Reolink PoE Doorbell Camera for upgradability. It uses an SEEED Xiao ESP32-C3 because of low cost, small size, and integrated battery charging. It can accomodate up to a 1200 mAh battery. Since the ESP is in deep sleep for the majority of the time, the battery has a very long life. 
+  </p>
+<p>
+The project only gives entities available to Home Assistant, so it is up to you to add automations triggered on the entity to send notifications on your phone or play through a connected speaker.
+  </p>
 
 <!-- Features -->
 ### :dart: Features
