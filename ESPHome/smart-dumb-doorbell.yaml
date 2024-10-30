@@ -1,24 +1,32 @@
 esphome:
-  name: smart-dumb-doorbell
-  friendly_name: Smart Dumb Doorbell
+  name: dumb-doorbell-mqtt
+  friendly_name: Dumb Doorbell MQTT
   # on_boot documentation and priorities: https://esphome.io/components/esphome.html#on-boot
   on_boot:
-    - priority: -100
-      then: # At this priority, pretty much everything should already be initialized.
-        - logger.log: "Starting sensor updates..."
+    - priority: 600
+      then:
         - light.turn_on:
             id: doorbell_light
             brightness: 100%
             transition_length: 100ms
 
+    - priority: 200
+      then: # At this priority, pretty much everything should already be initialized.
+        - deep_sleep.prevent: sleep_routine
+        - logger.log:
+            format: "Starting sensor updates..."
+            level: INFO
+        - light.turn_off:
+            id: doorbell_light
+            transition_length: 2s
         - output.turn_on: meas_gnd
         - repeat:
-            count: 3
+            count: 1
             then:
               - binary_sensor.template.publish:
                   id: doorbell_pressed
                   state: ON
-              #Sensor updates are turned off and manually requested on boot. 
+              #Sensor updates are turned off and manually requested on boot.
               #Then the ESP goes back to sleep when they're done (unless told to stay awake)
 
               # Request sensor updates
@@ -27,25 +35,30 @@ esphome:
               - component.update: bat_v
               - component.update: bat_percent
         - output.turn_off: meas_gnd
+        - deep_sleep.allow: sleep_routine
+        - delay: 2s
+        - binary_sensor.template.publish:
+            id: doorbell_pressed
+            state: OFF
+        - if:
+            condition:
+              - binary_sensor.is_on: battery_updated
+            then:
+              - logger.log:
+                  level: INFO
+                  format: "Data from battery received"
 
-  on_shutdown:
-    priority: -100
-    then:
-      - binary_sensor.template.publish:
-          id: doorbell_pressed
-          state: OFF
-      - if:
-          condition:
-            - binary_sensor.is_on: battery_updated
-          then:
-            - logger.log: "Data from battery received"
-          else:
-            - logger.log: "Battery update missing"
+            else:
+              - logger.log:
+                  format: "Battery update missing"
+                  level: ERROR
 
-      # Reset data update sensors states
-      - binary_sensor.template.publish:
-          id: battery_updated
-          state: OFF
+        # Reset data update sensors states
+        - binary_sensor.template.publish:
+            id: battery_updated
+            state: OFF
+        - deep_sleep.enter: sleep_routine
+
 
 
 esp32:
@@ -55,14 +68,25 @@ esp32:
 
 # Enable logging
 logger:
+    level: VERBOSE
 
-# Enable Home Assistant API
-api:
-  encryption:
-    key: "VRwfJXiRGmChBwfBQkodvWBMTDHalHpvG+pTJc2UOrs="
+# MQTT config entry
+mqtt:
+  broker: 192.168.1.100
+  port: 1883
+  username: esphome
+  password: !secret mqtt_password
+  discovery_retain: false
+  birth_message:
+    topic: ${name}/status
+    payload: ''
+  will_message:
+    topic: ${name}/status
+    payload: ''
 
 ota:
-  password: "espUpdate32"
+  - platform: esphome
+    password: "espUpdate32"
 
 wifi:
   ssid: !secret wifi_ssid
@@ -71,15 +95,14 @@ wifi:
     static_ip: 192.168.1.124
     gateway: 192.168.0.1
     subnet: 255.255.255.0
-  domain: ".web"
-  fast_connect: true
+  #domain: ".web"
+  fast_connect: false
+  reboot_timeout: 1min
   power_save_mode: none
 
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Smart-Dumb-Doorbell Fallback Hotspot"
-    password: "thisisapassword"
+mdns:
+  disabled: true
 
 captive_portal:
 
@@ -92,11 +115,7 @@ binary_sensor:
     name: "Battery Read"
     id: battery_updated
     internal: true
-    on_press:
-      then:
-        - light.turn_off:
-            id: doorbell_light
-            transition_length: 3s
+
 
 # Battery read ADC
 sensor:
@@ -159,11 +178,11 @@ light:
 
 # Deep sleep configuration
 deep_sleep:
-  run_duration: 3s
+  #run_duration: 4s
   #sleep_duration: 3s
-  wakeup_pin: 
+  wakeup_pin:
     number: GPIO2
-    mode: 
+    mode:
       input: True
       open_drain: False
       pulldown: True
